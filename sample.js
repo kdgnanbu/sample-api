@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import pkg from "pg";
-import "dotenv/config"; // ローカルで.envを使う場合
 
 const { Pool } = pkg;
 const app = express();
@@ -54,3 +53,4 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initDB();
 });
+
