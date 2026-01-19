@@ -1,46 +1,26 @@
-// initDB.js
-import { Pool } from "pg";
+// sample.js
+import pkg from "pg";
+const { Pool } = pkg;
 
-// ====== 接続情報 ======
-// Render 上なら DATABASE_URL が設定されているはず
-// ローカル用にはここで直接書く
-const LOCAL_DB_URL = "postgresql://root:02nGnXc9EnrWD0ESFpWP2nEZqORTZsE4@dpg-d5mrgv3e5dus73en9b90-a/sample_aol9";
+const DATABASE_URL = process.env.DATABASE_URL; // Render では自動で設定される
 
-const connectionString = process.env.DATABASE_URL || LOCAL_DB_URL;
-
+// PostgreSQL接続用プール
 const pool = new Pool({
-  connectionString,
-  ssl: process.env.DATABASE_URL
-    ? { rejectUnauthorized: false } // Render 上の SSL 必須
-    : false,
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Render では SSL 設定が必要
+  },
 });
 
-// ====== DB 初期化 ======
-async function initDB() {
+async function testConnection() {
   try {
-    // actor テーブル
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS actor (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(50) UNIQUE NOT NULL
-      );
-    `);
-
-    // movie テーブル
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS movie (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(100) UNIQUE NOT NULL
-      );
-    `);
-
-    console.log("✅ Tables created successfully");
+    const res = await pool.query("SELECT NOW()"); // 現在時刻を取得するだけ
+    console.log("✅ DB接続成功:", res.rows[0]);
   } catch (err) {
-    console.error("❌ DB init error:", err);
+    console.error("❌ DB接続エラー:", err);
   } finally {
     await pool.end();
   }
 }
 
-// 実行
-initDB();
+testConnection();
