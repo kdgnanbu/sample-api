@@ -1,26 +1,56 @@
-// sample.js
+import express from "express";
+import cors from "cors";
 import pkg from "pg";
+import "dotenv/config"; // ローカルで.envを使う場合
+
 const { Pool } = pkg;
+const app = express();
 
-const DATABASE_URL = process.env.DATABASE_URL; // Render では自動で設定される
+// 開発用 CORS 許可
+app.use(cors());
 
-// PostgreSQL接続用プール
+// DB 接続設定
 const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Render では SSL 設定が必要
-  },
+  connectionString: process.env.DATABASE_URL, // Render Internal DB は自動設定
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false, // Renderは必須
 });
 
-async function testConnection() {
+// 初期テーブル作成関数
+async function initDB() {
   try {
-    const res = await pool.query("SELECT NOW()"); // 現在時刻を取得するだけ
-    console.log("✅ DB接続成功:", res.rows[0]);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sample_table (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(50) NOT NULL
+      );
+    `);
+
+    // 確認用にデータ挿入（重複は避ける）
+    await pool.query(`
+      INSERT INTO sample_table (name)
+      VALUES ('hello database')
+      ON CONFLICT DO NOTHING;
+    `);
+
+    console.log("✅ DB 初期化完了");
   } catch (err) {
-    console.error("❌ DB接続エラー:", err);
-  } finally {
-    await pool.end();
+    console.error("❌ DB init error:", err);
   }
 }
 
-testConnection();
+// API エンドポイント
+app.get("/api/sample", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM sample_table LIMIT 1");
+    res.json(result.rows[0] || { message: "no data" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// サーバー起動
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, async () => {
+  console.log(`Server running on port ${PORT}`);
+  await initDB();
+});
