@@ -1,0 +1,16 @@
+{
+  "name": "sample-api",
+  "type": "module",
+  "scripts": {
+    "start": "node sample.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1"
+  },
+  "version": "1.0.0",
+  "description": "",
+  "main": "sample.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
