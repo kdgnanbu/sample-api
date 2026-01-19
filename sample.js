@@ -5,16 +5,16 @@ import pkg from "pg";
 const { Pool } = pkg;
 const app = express();
 
-// 開発用 CORS 許可
+// Render 上では全てのオリジンからのアクセス許可（開発用）
 app.use(cors());
 
-// DB 接続設定
+// Render Environment Variable から DB URL を取得
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Render Internal DB は自動設定
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false, // Renderは必須
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // Render PostgreSQL は SSL 必須
 });
 
-// 初期テーブル作成関数
+// DB 初期化（テーブル作成 + 確認用データ挿入）
 async function initDB() {
   try {
     await pool.query(`
@@ -24,7 +24,6 @@ async function initDB() {
       );
     `);
 
-    // 確認用にデータ挿入（重複は避ける）
     await pool.query(`
       INSERT INTO sample_table (name)
       VALUES ('hello database')
@@ -48,9 +47,8 @@ app.get("/api/sample", async (req, res) => {
 });
 
 // サーバー起動
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initDB();
 });
-
