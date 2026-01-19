@@ -5,21 +5,18 @@ import pkg from "pg";
 const { Pool } = pkg;
 const app = express();
 
-// 開発用 CORS 許可（必要に応じて制限可能）
+// CORS 許可（開発用）
 app.use(cors());
 
-// Render 上の PostgreSQL に接続
-// DATABASE_URL は Render の Environment Variables に設定
-DATABASE_URL=postgres://root:02nGnXc9EnrWD0ESFpWP2nEZqORTZsE4@dpg-d5mrgv3e5dus73en9b90-a:5432/sample_aol9?sslmode=require 
+// Render 上の DB に接続するプール
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // Render では必須
+  connectionString: process.env.DATABASE_URL, // Render の Environment Variable
+  ssl: { rejectUnauthorized: false },         // Render の DB は必須
 });
 
-// DB 初期化関数
+// 初期テーブル作成関数
 async function initDB() {
   try {
-    // テーブル作成
     await pool.query(`
       CREATE TABLE IF NOT EXISTS sample_table (
         id SERIAL PRIMARY KEY,
@@ -27,7 +24,6 @@ async function initDB() {
       );
     `);
 
-    // 確認用データ挿入（重複は避ける）
     await pool.query(`
       INSERT INTO sample_table (name)
       VALUES ('hello database')
