@@ -4,11 +4,11 @@
   "scripts": {
     "start": "node sample.js"
   },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.22.1",
-    "pg": "^8.17.1"
-  },
+"dependencies": {
+  "cors": "^2.8.5",
+  "express": "^4.22.1",
+  "mysql2": "^3.11.0"
+},
   "version": "1.0.0",
   "description": "",
   "main": "sample.js",
