@@ -29,7 +29,6 @@
 
 // // 実行
 // main();// 
-server.js
 import express from "express";
 import pg from "pg";
 import cors from "cors";
@@ -69,5 +68,6 @@ app.get("/actors", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
 
 
