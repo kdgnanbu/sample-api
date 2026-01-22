@@ -1,22 +1,26 @@
-import express from "express";
-import { initDB } from "./db.js";
+// sample.js
+import pkg from "pg";
+const { Pool } = pkg;
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const DATABASE_URL = process.env.DATABASE_URL; // Render では自動で設定される
 
-// 🔽 DB初期化は「失敗しても落とさない」
-initDB()
-  .then(() => {
-    console.log("✅ DB init done");
-  })
-  .catch((err) => {
-    console.error("❌ DB init failed", err);
-  });
-
-app.get("/", (req, res) => {
-  res.send("Cinema API running");
+// PostgreSQL接続用プール
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Render では SSL 設定が必要
+  },
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+async function testConnection() {
+  try {
+    const res = await pool.query("SELECT NOW()"); // 現在時刻を取得するだけ
+    console.log("✅ DB接続成功:", res.rows[0]);
+  } catch (err) {
+    console.error("❌ DB接続エラー:", err);
+  } finally {
+    await pool.end();
+  }
+}
+
+testConnection();
