@@ -1,56 +1,6 @@
-
-// import express from "express";
-// import pg from "pg";
-// import cors from "cors";
-
-// const app = express();
-// const PORT = process.env.PORT || 3000;
-
-// // CORSを有効化（ブラウザからアクセスできるようにする）
-// app.use(cors());
-// app.use(express.json());
-
-// // RenderのPostgreSQL接続情報を環境変数で取得
-// const pool = new pg.Pool({
-// connectionString: "postgresql://cinema_user:Sx8YGHwzYN4HyEyOoSjLM6qAByvFetCw@dpg-d5o7absoud1c73ceeerg-a.singapore-postgres.render.com:5432/cinema_z5jh?sslmode=require",
-//   ssl: {
-//     rejectUnauthorized: false, // RenderのSSL用
-//   },
-// });
-
-// // ルート確認用
-// app.get("/", (req, res) => {
-//   res.send("API is running");
-// });
-
-// // 俳優情報取得API
-// app.get("/actors", async (req, res) => {
-//   try {
-//     const result = await pool.query("SELECT * FROM actor ORDER BY actor_no");
-//     res.json(result.rows);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "DB query failed" });
-//   }
-// });
-
-// // サーバー起動
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port ${PORT}`);
-// });
-
-
-
-
-
-
-// sample-pg.js
 import express from "express";
 import cors from "cors";
 import pg from "pg";
-// import dotenv from "dotenv";
-
-// dotenv.config();
 
 const app = express();
 app.use(cors());
@@ -94,7 +44,7 @@ app.get("/api/actor", async (req, res) => {
       LEFT JOIN nationality n ON a.nationality_no = n.nationality_no
     `);
 
-    const actors = {};
+    const actors: any = {};
     rows.forEach(r => {
       if (!actors[r.actor_no]) {
         actors[r.actor_no] = {
@@ -108,14 +58,87 @@ app.get("/api/actor", async (req, res) => {
           nationality: r.nationality,
           awards: r.awards ? [r.awards] : [],
           movies: [],
+          movieDetails: [],
         };
       } else if (r.awards) actors[r.actor_no].awards.push(r.awards);
     });
 
     const actorList = Object.values(actors);
+
+    // actor_no一覧
+    const actorNos = actorList.map(a => a.actor_no);
+    if (actorNos.length > 0) {
+      const { rows: movieRows } = await pool.query(`
+        SELECT ma.actor_no, m.movie_no, m.title, c.category, a.age_limit
+        FROM movie_actor ma
+        JOIN movie m ON ma.movie_no = m.movie_no
+        JOIN category c ON m.category_no = c.category_no
+        JOIN age_limit a ON m.age_limit_no = a.age_limit_no
+        WHERE ma.actor_no = ANY($1::int[])
+      `, [actorNos]);
+
+      const movieMap: any = {};
+      movieRows.forEach(r => {
+        if (!movieMap[r.movie_no]) {
+          movieMap[r.movie_no] = { movie_no: r.movie_no, title: r.title, category: r.category, age_limit: r.age_limit };
+        }
+      });
+
+      actorList.forEach(actor => {
+        actor.movieDetails = movieRows
+          .filter(r => r.actor_no === actor.actor_no)
+          .map(r => movieMap[r.movie_no]);
+      });
+    }
+
     actorList.sort((a, b) => customJapaneseSort(a.name, b.name));
     res.json(actorList);
-  } catch (err) {
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------------------
+// 映画一覧
+// ----------------------------
+app.get("/api/movie", async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT m.movie_no, m.title, m.image_path, c.category, m.relese_date, a.age_limit
+      FROM movie m
+      JOIN category c ON m.category_no = c.category_no
+      JOIN age_limit a ON m.age_limit_no = a.age_limit_no
+    `);
+
+    const movies: any = {};
+    rows.forEach(r => {
+      if (!movies[r.movie_no]) {
+        movies[r.movie_no] = {
+          movie_no: r.movie_no,
+          title: r.title,
+          image_path: r.image_path,
+          category: r.category,
+          relese_date: r.relese_date ? r.relese_date.toISOString().split("T")[0] : null,
+          age_limit: r.age_limit,
+          actors: [],
+        };
+      }
+    });
+
+    const movieList = Object.values(movies);
+    const movieIds = movieList.map(m => m.movie_no);
+    if (movieIds.length > 0) {
+      const { rows: actorRows } = await pool.query(`
+        SELECT movie_no, actor_no FROM movie_actor WHERE movie_no = ANY($1::int[])
+      `, [movieIds]);
+      actorRows.forEach(r => {
+        if (movies[r.movie_no]) movies[r.movie_no].actors.push(r.actor_no);
+      });
+    }
+
+    movieList.sort((a,b) => customJapaneseSort(a.title, b.title));
+    res.json(movieList);
+  } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -185,40 +208,6 @@ app.post("/api/actor/search", async (req, res) => {
 // ----------------------------
 // 映画一覧取得
 // ----------------------------
-app.get("/api/movie", async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT m.movie_no, m.title, m.image_path, c.category, m.relese_date, a.age_limit, g.genre
-      FROM movie m
-      JOIN category c ON m.category_no = c.category_no
-      JOIN age_limit a ON m.age_limit_no = a.age_limit_no
-      LEFT JOIN movie_genre mg ON m.movie_no = mg.movie_no
-      LEFT JOIN genre g ON mg.genre_no = g.genre_no
-    `);
-    const movies = {};
-    rows.forEach(r => {
-      if (!movies[r.movie_no]) {
-        movies[r.movie_no] = {
-          movie_no: r.movie_no,
-          title: r.title,
-          image_path: r.image_path,
-          category: r.category,
-          relese_date: r.relese_date ? r.relese_date.toISOString().split("T")[0] : null,
-          age_limit: r.age_limit,
-          genres: [],
-        };
-      }
-      if (r.genre && !movies[r.movie_no].genres.includes(r.genre)) {
-        movies[r.movie_no].genres.push(r.genre);
-      }
-    });
-    const movieList = Object.values(movies);
-    movieList.sort((a,b) => customJapaneseSort(a.title, b.title));
-    res.json(movieList);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ----------------------------
 // 映画検索（POST）
@@ -278,6 +267,7 @@ app.get("/api/movie/genre", async (req, res) => {
 app.listen(process.env.PORT || 3000, () =>
   console.log(`Server running on port ${process.env.PORT || 3000}`)
 );
+
 
 
 
