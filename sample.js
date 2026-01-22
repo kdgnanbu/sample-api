@@ -1,26 +1,31 @@
 // sample.js
-import pkg from "pg";
+// PostgreSQL (Render DB) に接続して actor テーブルのデータを取得する簡単なサンプル
+
+import pkg from 'pg';
 const { Pool } = pkg;
 
-const DATABASE_URL = process.env.DATABASE_URL; // Render では自動で設定される
-
-// PostgreSQL接続用プール
+// Render DB の接続情報
 const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Render では SSL 設定が必要
-  },
+  connectionString: 'postgresql://cinema_user:Sx8YGHwzYN4HyEyOoSjLM6qAByvFetCw@dpg-d5o7absoud1c73ceeerg-a.singapore-postgres.render.com:5432/cinema_z5jh?sslmode=require'
 });
 
-async function testConnection() {
+async function main() {
   try {
-    const res = await pool.query("SELECT NOW()"); // 現在時刻を取得するだけ
-    console.log("✅ DB接続成功:", res.rows[0]);
+    // DBに接続して actor テーブルの全データを取得
+    const result = await pool.query('SELECT * FROM actor ORDER BY actor_no ASC;');
+    
+    console.log('=== Actor List ===');
+    result.rows.forEach(actor => {
+      console.log(`${actor.actor_no}: ${actor.name} (${actor.date_of_birth})`);
+    });
+
   } catch (err) {
-    console.error("❌ DB接続エラー:", err);
+    console.error('DB接続エラー:', err);
   } finally {
+    // プールを閉じる
     await pool.end();
   }
 }
 
-testConnection();
+// 実行
+main();
